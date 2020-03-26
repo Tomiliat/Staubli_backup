@@ -1,0 +1,1 @@
+/home/tomiliatsereh/staubli_ws/devel/.private/staubli_tx40_moveit_config/share/staubli_tx40_moveit_config/cmake/staubli_tx40_moveit_configConfig-version.cmake
