@@ -25,6 +25,8 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <math.h>
+#include <cmath>
 
 // Boost
 #include <boost/algorithm/string.hpp>
@@ -160,6 +162,7 @@ int main(int argc, char** argv)
     ROS_ERROR("Could not execute trajectory!");
     return -6;
   }
+  std::cout << joint_solution << "\n";
 
   // Wait till user kills the process (Control-C)
   ROS_INFO("Done!");
@@ -179,6 +182,16 @@ descartes_core::TrajectoryPtPtr makeTolerancedCartesianPoint(const Eigen::Isomet
   using namespace descartes_core;
   using namespace descartes_trajectory;
   return TrajectoryPtPtr( new AxialSymmetricPt(pose, M_PI / 12.0, AxialSymmetricPt::Z_AXIS, TimingConstraint(dt)) );
+}
+
+
+// Calculate delta time to match 40mm/min velocity. 40mm/min could change, this is test value at the moment, and printertool.cpp have the same value.
+double calculateDT(Eigen::Vector3d position, Eigen::Vector3d previousPosition)
+{
+  // Set velocity. 0.001 = 1mm/min
+  double velocity = 0.04;
+  // The distance formula
+  return sqrt(pow(position(0) - previousPosition(0), 2) + pow(position(1) - previousPosition(1), 2) + pow(position(2) - previousPosition(2), 2)) / velocity*60;
 }
 
 std::vector<descartes_core::TrajectoryPtPtr> makePath(std::string filename)
@@ -208,47 +221,62 @@ std::vector<descartes_core::TrajectoryPtPtr> makePath(std::string filename)
   // Initialize the pose as an identity matrix
   Eigen::Isometry3d poseN = Eigen::Isometry3d::Identity();
   // Position given by the G-Code (X,Y,Z)
-  Eigen::Vector3d position;
+  // This is also starting position (X,Y,Z)
+  Eigen::Vector3d position(0.1, 0.035, 0.5);
   // Orientation given by the G-Code (I,J,K)
-  Eigen::Vector3d toolAxisIJK(0.0, 0.0, 1.0);
+  // This is also starting orientation (I,J,K)
+  Eigen::Vector3d toolAxisIJK(0.0, 0.0, 1.0); 
   // The free axis of the tool, corresponding to the URDF tool0 frame
   Eigen::Vector3d toolAxis = Eigen::Vector3d::UnitZ();
   // Rotation axis used to align the tools axis
   Eigen::Vector3d rotationAxis;
   // Rotation angle used to align the tools axis
   double rotationAngle;
-  // The orientation of th pose
+  // The orientation of the pose
   Eigen::AngleAxisd orientationIJK;
   // If not defined, the delta time used to get to next pose
-  const static double dt = 1.0;
+  static double dt;
   
   // Loop variable
   int i = 1;
   
-  
+  // set XY offset
+  int offsetXY = 0;
+
+  // set Z offset
+  int offsetZ = 0;
+
+  // Define "home" position, for setting right velocity between starting position and first gcode coordinate.
+  // If you change home position, remember to change parameters in lines 225 & 228 too, and set .gcode end routine.
+  Eigen::Vector3d previousPosition(0.1, 0.035, 0.5);
+
   gcodeFile.open(completeFilename);
   if(gcodeFile){
-    while(std::getline(gcodeFile,line)){
+
+    while(std::getline(gcodeFile,line)){ 
         boost::split(splitLine, line, boost::is_any_of(delimiters));
         // Loop to extract datas from each character. 
         for(std::string element : splitLine){
             // Simply add a new condition if you want to extract and store datas from another character
             if(element[0] == 'X')
-                position(0) = std::stod(&element[1]);
+                position(0) = (std::stod(&element[1])+offsetXY)/1000;
             else if(element[0] == 'Y')
-                position(1) = std::stod(&element[1]);
+                position(1) = (std::stod(&element[1])+offsetXY)/1000;
             else if(element[0] == 'Z')
-                position(2) = std::stod(&element[1]);
+                position(2) = (std::stod(&element[1])+offsetZ)/1000;
             else if(element[0] == 'I')
-                toolAxisIJK(0) = std::stod(&element[1]);
+                toolAxisIJK(0) = std::stod(&element[1])/1000;
             else if(element[0] == 'J')
-                toolAxisIJK(1) = std::stod(&element[1]);
+                toolAxisIJK(1) = std::stod(&element[1])/1000;
             else if(element[0] == 'K')
-                toolAxisIJK(2) = std::stod(&element[1]);
+                toolAxisIJK(2) = std::stod(&element[1])/1000;
             else ROS_WARN("Element: %s, line: %i not handled.",
                 element.c_str(), i);
         }
+
         
+        std::cout << position << "\n";
+
         // Calculs to align tools axis vector
         toolAxisIJK.normalize();
         rotationAxis = toolAxis.cross(toolAxisIJK);
@@ -259,8 +287,12 @@ std::vector<descartes_core::TrajectoryPtPtr> makePath(std::string filename)
         poseN.translate(position);
         poseN.rotate(orientationIJK);
         
+        // Apply velocity changes
+        dt = calculateDT(position, previousPosition);
+        previousPosition = position;
+
         // Allow degree of freedom for the tool axis
-        pt = descartes_core::TrajectoryPtPtr(new descartes_trajectory::AxialSymmetricPt(poseN, M_PI / 12.0, descartes_trajectory::AxialSymmetricPt::Z_AXIS, descartes_core::TimingConstraint(dt)));
+        pt = descartes_core::TrajectoryPtPtr(new descartes_trajectory::AxialSymmetricPt(poseN, M_PI / 2.0, descartes_trajectory::AxialSymmetricPt::Z_AXIS, descartes_core::TimingConstraint(dt)));
         pathTrajectory.push_back(pt);
         
         // Format for next iteration
@@ -272,6 +304,7 @@ std::vector<descartes_core::TrajectoryPtPtr> makePath(std::string filename)
   }else{
     ROS_ERROR("G-Code file not read");
   }
+
 
   return pathTrajectory;
 }
