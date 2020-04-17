@@ -133,7 +133,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_printertool src/printertool.cpp src/mySerial.cpp src/mySerial.h)
+## add_executable(${PROJECT_NAME}_printertool src/printertool.cpp src/mySerial.cpp src/mySerial.h)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -204,3 +204,19 @@ add_executable(${PROJECT_NAME}_printertool src/printertool.cpp src/mySerial.cpp 
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+## add_executable(${PROJECT_NAME}_printertool src/printertool.cpp src/mySerial.cpp src/mySerial.h)
+
+## add_executable(printertool src/printertool.cpp)
+## target_link_libraries(printertool ${catkin_LIBRARIES})
+
+## add_executable(mySerial src/mySerial.cpp)
+## target_link_libraries(mySerial ${catkin_LIBRARIES})
+
+## add_executable(mySerial src/mySerial.h)
+## target_link_libraries(mySerial ${catkin_LIBRARIES})
+add_executable(${PROJECT_NAME}_printertool src/printertool.cpp src/mySerial.cpp src/mySerial.h)
+add_dependencies(${PROJECT_NAME}_printertool ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(${PROJECT_NAME}_printertool ${catkin_LIBRARIES})
+
+

@@ -5,7 +5,7 @@
 #include <cmath>
 #include <sstream>
 // Core ros functionality like ros::init
-// #include <ros/ros.h>
+#include <ros/ros.h>
 
 // printer variables & parameters
 float printspeed = 40;
@@ -17,17 +17,17 @@ float diamfil = 1.75;
 // E = ((pi * diamfil^2) / (4)) * L1. 
 
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
+    // Initialize ROS
+    ros::init(argc, argv, "printertool");
+    ros::NodeHandle nh;
+
     // Here we calculate new parameters to F
     float feedrate = (60 * 4 * diambuse * hcouche * printspeed)/(std::pow(diamfil, 2) * M_PI);
     std::ostringstream ssF;
     ssF << feedrate;
     std::string feedrateString = ssF.str();
-
-    // Initialize ROS
-    // ros::init(argc, argv, "printertool");
-    // ros::NodeHandle nh;
 
     std::string filename, line, path;
     std::ifstream read;
