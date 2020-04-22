@@ -12,14 +12,14 @@
 #include <tf/transform_listener.h>
 
 // printer variables & parameters (F)
-float printspeed = 40;
+float printspeed = 40;     // Set velocity 
 float diambuse = 0.4;      // Buse from french = Layer
 float hcouche = 0.2;
 float diamfil = 1.75;
 // F = feedrate = (60 * 4 * diambuse * hcouche * printspeed)/(diamfil^2 * pi)
-
 // E = ((pi * diamfil^2) / (4)) * L1. 
 
+// Function for searching coordinates.
 std::string getGcodeValue(std::string gcodeOperand, std::string gcodeLine) {
     if (isdigit(gcodeLine[gcodeLine.find(gcodeOperand) + 1]) || gcodeLine[gcodeLine.find(gcodeOperand) + 1]=='-')
     {
@@ -53,6 +53,7 @@ int main(int argc, char** argv)
 
     // Calculate new parameters to F
     float feedrate = (60 * 4 * diambuse * hcouche * printspeed)/(std::pow(diamfil, 2) * M_PI);
+
     std::ostringstream ssF;
     ssF << feedrate;
     std::string feedrateString = ssF.str();
@@ -60,36 +61,39 @@ int main(int argc, char** argv)
     std::string filename, line, path;
     std::ifstream read;
 
-    // Here we define our port and baudrate, and make communication.
+    // Define port and baudrate, and make communication.
     mySerial serial = mySerial("/dev/ttyUSB0", 9600);
 
     std::vector<std::string> gcodeLines = {};
-    float rememberZ = 0;
 
-    // UNCOMMENT THIS, IF you want your file to be read from same directory with the script.
-    /* 
-    std::cout << "Enter G-Code filename: ";
-    std::getline(std::cin, filename);
-    read.open(filename);
-    */
+    // UNCOMMENT THIS, IF you want your file to be read from same directory with the script. ///////////////////////
+    /*                                                                                                              //
+    std::cout << "Enter G-Code filename: ";                                                                         //
+    std::getline(std::cin, filename);                                                                               //
+    read.open(filename);                                                                                            //
+    */                                                                                                              //
+   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
    
-    // UNCOMMENT THIS, IF you want your file to be read from absolute path.
-    //*
-    std::cout << "Enter G-Code filename: ";
-    std::getline(std::cin, filename);
-    read.open("/home/tomiliatsereh/staubli_ws/src/manufacturing_6dof/gcode/" + filename); // "home/[USERNAME]/[PATH_TO_YOUR_FILE]" <- edit
-    //
 
-    //* UNCOMMENT THIS, IF you want to ask user for path and filename.
-    /*
-    std::cout << "Enter full path to G-code file folder: ";
-    std::getline(std::cin, path);
+    // UNCOMMENT THIS, IF you want your file to be read from absolute path. ///////////////////////////////////////////////////////////////////////
+    //*                                                                                                                                           //  
+    std::cout << "Enter G-Code filename: ";                                                                                                       //  
+    std::getline(std::cin, filename);                                                                                                             //
+    read.open("/home/tomiliatsereh/backupstaubli_ws/src/manufacturing_6dof/gcode/" + filename); // "home/[USERNAME]/[PATH_TO_YOUR_FILE]" <- edit  //
+                                                                                                                                                  //
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::cout << "Enter G-Code filename: ";
-    std::getline(std::cin, filename);
-    
-    read.open(path + filename);
-    */
+    //* UNCOMMENT THIS, IF you want to ask user for path and filename. ///////////////////////////////////////////////
+    /*                                                                                                               //
+    std::cout << "Enter full path to G-code file folder: ";                                                          //
+    std::getline(std::cin, path);                                                                                    //
+                                                                                                                     //
+    std::cout << "Enter G-Code filename: ";                                                                          //
+    std::getline(std::cin, filename);                                                                                //
+                                                                                                                     //
+    read.open(path + filename);                                                                                      //
+    */                                                                                                               //
+   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
     if (read.is_open())
@@ -97,8 +101,6 @@ int main(int argc, char** argv)
         std::string oldE = "0";
         std::string actE;
         double newE;
-        // std::string F = F;
-        // char F;
 
         // Search F and change feedrate value. Overwrite with new parameters.
         while (getline(read, line))
@@ -110,6 +112,13 @@ int main(int argc, char** argv)
                 int feedrateLength = fSpacePos - fStartPos;
                 line.replace(fStartPos, feedrateLength, feedrateString);
             }
+            /*
+            // There is possibility, that F is not stored and should be printed in every line. 
+            else
+            {
+                If in future there occurs problems with printing, start with adding F in every line.
+            }
+            */
 
 
             // Search E and change parameters
@@ -153,7 +162,7 @@ int main(int argc, char** argv)
         */
 
         tf::TransformListener listener;
-        ros::Rate rate(10.0);
+        ros::Rate rate(50.0);   //  frequency (hz)
         int lineIndex = 0;
         
         // Robot start position coordinates
@@ -169,6 +178,7 @@ int main(int argc, char** argv)
                 destinationY = std::stod(getGcodeValue("Y", gcodeLines[lineIndex]));
                 destinationZ = std::stod(getGcodeValue("Z", gcodeLines[lineIndex]));
             }
+            std::cout << gcodeLines[lineIndex] << "\n";
             serial.Send(gcodeLines[lineIndex]);
             lineIndex++;
         }
@@ -195,24 +205,34 @@ int main(int argc, char** argv)
                 */
                 listener.lookupTransform("base_link", "tool0", ros::Time(0), transform);
 
-                // Print location to the console
+                // Latest XYZ transform
                 double x = transform.getOrigin().x();
                 double y = transform.getOrigin().y();
                 double z = transform.getOrigin().z();
+
+                // Print robot location to the console
                 // std::cout << "Current position: (" << x << "," << y << "," << z << ")" << std::endl;
 
                 // Checking and waiting matching values, from gcode file and robot position.
-                if ((x*1000)==destinationX && (y*1000)==destinationY && (z*1000)==destinationZ)
+                std::cout << (x*1000) << " == " << destinationX << "\n";
+                std::cout << (y*1000) << " == " << destinationY << "\n";
+                std::cout << (z*1000) << " == " << destinationZ << "\n";
+
+                // Set tolerance between points
+                double tolerance = 0.001;
+                if (std::abs(x*1000-destinationX)<tolerance && std::abs(y*1000-destinationY)<tolerance && std::abs(z*1000-destinationZ)<tolerance)
                 {
                     // Send line, if it is not including XYZ straight away
                     while (getGcodeValue("X", gcodeLines[lineIndex])=="" && getGcodeValue("Y", gcodeLines[lineIndex])=="" && getGcodeValue("Z", gcodeLines[lineIndex])=="")
                     {
+                        std::cout << gcodeLines[lineIndex] << "\n";
                         serial.Send(gcodeLines[lineIndex]);
                         lineIndex++;
                     }
+                     // XYZ found, send line and save coordinate values.
+                    std::cout << gcodeLines[lineIndex] << "\n";
+                    serial.Send(gcodeLines[lineIndex]);                     // Miks serial.Send on tossa?
 
-                    // XYZ found, send line and save coordinate values.
-                    serial.Send(gcodeLines[lineIndex]);
                     if (getGcodeValue("X", gcodeLines[lineIndex])!="")
                     {
                         destinationX = std::stod(getGcodeValue("X", gcodeLines[lineIndex]));
@@ -227,6 +247,7 @@ int main(int argc, char** argv)
                     }
 
                     lineIndex++;
+                    std::cout << gcodeLines[lineIndex] << "\n";
                 }
             }
             catch (tf::TransformException &ex) {
