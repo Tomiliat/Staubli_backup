@@ -12,8 +12,8 @@
 #include <tf/transform_listener.h>
 
 // printer variables & parameters (F)
-float printspeed = 40;     // Set velocity 
-float diambuse = 0.4;      // Buse from french = Layer
+float printspeed = 40;      // Set velocity 
+float diambuse = 0.4;
 float hcouche = 0.2;
 float diamfil = 1.75;
 // F = feedrate = (60 * 4 * diambuse * hcouche * printspeed)/(diamfil^2 * pi)
@@ -148,7 +148,7 @@ int main(int argc, char** argv)
                 oldE = actE;
             }
 
-            // cout just to see what is happening, not important and you can remove this if you don't need it in the future
+            // cout just to see what is happening
             // std::cout << line << "\n";
 
             gcodeLines.push_back(line);
@@ -156,7 +156,7 @@ int main(int argc, char** argv)
         read.close();
 
         /*
-        Create a TransformListener object. Once the listener is created, it starts receiving tf transformations over the wire, and buffers them for up to 10 seconds. 
+        Create a TransformListener object. Once the listener is created, it starts receiving tf transformations over the wire, and buffers them for up to 50 seconds. 
         The TransformListener object should be scoped to persist otherwise it's cache will be unable to fill and almost every query will fail. A common method is to make the 
         TransformListener object a member variable of a class.
         */
@@ -169,6 +169,10 @@ int main(int argc, char** argv)
         double destinationX = 0;
         double destinationY = 0;
         double destinationZ = 0;
+
+        // Sending all lines at the beginning, before first line with XY AND Z is found. After line with XYZ is found, waiting coordinates to match with the robot and sending them line by line.
+        // When robot reaches point A, send point B to the USB etc.
+        // If line in gcode does not include XY or Z, send it straightly to the USB. 
         while (destinationX==0 && destinationY==0 && destinationZ==0)
         {
             // Sending lines to USB port. When XYZ found, stop and wait for matching coordinates from robot.
@@ -214,12 +218,12 @@ int main(int argc, char** argv)
                 // std::cout << "Current position: (" << x << "," << y << "," << z << ")" << std::endl;
 
                 // Checking and waiting matching values, from gcode file and robot position.
-                std::cout << (x*1000) << " == " << destinationX << "\n";
-                std::cout << (y*1000) << " == " << destinationY << "\n";
-                std::cout << (z*1000) << " == " << destinationZ << "\n";
+                // std::cout << (x*1000) << " == " << destinationX << "\n";
+                // std::cout << (y*1000) << " == " << destinationY << "\n";
+                // std::cout << (z*1000) << " == " << destinationZ << "\n";
 
                 // Set tolerance between points
-                double tolerance = 0.001;
+                double tolerance = 0.005;
                 if (std::abs(x*1000-destinationX)<tolerance && std::abs(y*1000-destinationY)<tolerance && std::abs(z*1000-destinationZ)<tolerance)
                 {
                     // Send line, if it is not including XYZ straight away
@@ -231,7 +235,7 @@ int main(int argc, char** argv)
                     }
                      // XYZ found, send line and save coordinate values.
                     std::cout << gcodeLines[lineIndex] << "\n";
-                    serial.Send(gcodeLines[lineIndex]);                     // Miks serial.Send on tossa?
+                    serial.Send(gcodeLines[lineIndex]);
 
                     if (getGcodeValue("X", gcodeLines[lineIndex])!="")
                     {
