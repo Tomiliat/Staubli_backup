@@ -76,7 +76,13 @@ int main(int argc, char** argv)
   const std::string group_name = "manipulator";
 
   // Name of frame in which you are expressing poses. Typically "world_frame" or "base_link".
-  const std::string world_frame = "base_link";
+  /* Previously we were looking at base_link, so at the middle bottom of the robot. Now there is added new frame named "custom",
+     which we can move from the tx_40_macro.xacro. This is done, to be able move needed frame anywhere we want, for example
+     plan is that this whill be point in the corner of the printing table. Similar changes are done to the printertool.cpp. 
+     It is "looking" transformation between custom frame and tool0, so it recognizes coordinate points correctly.  
+  */
+  const std::string world_frame = "custom";
+  // const std::string world_frame = "base_link";
 
   // tool center point frame (name of link associated with tool). The robot's flange is typically "tool0" but yours
   // could be anything. We typically have our tool's positive Z-axis point outward from the grinder, welder, etc.
@@ -190,6 +196,7 @@ double calculateDT(Eigen::Vector3d position, Eigen::Vector3d previousPosition)
 {
   // Set velocity. 0.001 = 1mm/min
   double velocity = 0.04;
+
   // The distance formula
   return sqrt(pow(position(0) - previousPosition(0), 2) + pow(position(1) - previousPosition(1), 2) + pow(position(2) - previousPosition(2), 2)) / velocity*60;
 }
@@ -222,7 +229,7 @@ std::vector<descartes_core::TrajectoryPtPtr> makePath(std::string filename)
   Eigen::Isometry3d poseN = Eigen::Isometry3d::Identity();
   // Position given by the G-Code (X,Y,Z)
   // This is also starting position (X,Y,Z)
-  Eigen::Vector3d position(0.1, 0.035, 0.5);
+  Eigen::Vector3d position(0.0, 0.0, 0.0);
   // Orientation given by the G-Code (I,J,K)
   // This is also starting orientation (I,J,K)
   Eigen::Vector3d toolAxisIJK(0.0, 0.0, 1.0); 
@@ -247,8 +254,8 @@ std::vector<descartes_core::TrajectoryPtPtr> makePath(std::string filename)
   int offsetZ = 0;
 
   // Define "home" position, for setting right velocity between starting position and first gcode coordinate.
-  // If you change home position, remember to change parameters in lines 225 & 228 too, and set .gcode end routine.
-  Eigen::Vector3d previousPosition(0.1, 0.035, 0.5);
+  // If you change home position, remember to change parameters in lines 225 & 228 too, and set .gcode end part.
+  Eigen::Vector3d previousPosition(0.0, 0.0, 0.0);
 
   gcodeFile.open(completeFilename);
   if(gcodeFile){
@@ -292,7 +299,7 @@ std::vector<descartes_core::TrajectoryPtPtr> makePath(std::string filename)
         previousPosition = position;
 
         // Allow degree of freedom for the tool axis
-        pt = descartes_core::TrajectoryPtPtr(new descartes_trajectory::AxialSymmetricPt(poseN, M_PI / 2.0, descartes_trajectory::AxialSymmetricPt::Z_AXIS, descartes_core::TimingConstraint(dt)));
+        pt = descartes_core::TrajectoryPtPtr(new descartes_trajectory::AxialSymmetricPt(poseN, M_PI / 12.0, descartes_trajectory::AxialSymmetricPt::Z_AXIS, descartes_core::TimingConstraint(dt)));
         pathTrajectory.push_back(pt);
         
         // Format for next iteration
