@@ -16,7 +16,7 @@ int main(int argc, char** argv){
   */
   tf::TransformListener listener;
 
-  ros::Rate rate(10.0);
+  ros::Rate rate(50.0);
   while (node.ok()){
     tf::StampedTransform transform;
     try{
@@ -32,6 +32,9 @@ int main(int argc, char** argv){
       */
       listener.waitForTransform("base_link","tool0", ros::Time(0), ros::Duration(10.0));
 
+      // Using this also helps to figure out what printer is reading. Useful for bug fixes.
+      // listener.waitForTransform("custom","tool0", ros::Time(0), ros::Duration(10.0));
+
       /*
       Here, the real work is done, we query the listener for a specific transformation. Let's take a look at the four arguments:
       1. We want the transform from frame 1 to frame 2.
@@ -41,12 +44,20 @@ int main(int argc, char** argv){
       */
       listener.lookupTransform("base_link", "tool0", ros::Time(0), transform);
 
+      // As previously mentioned, for printertool bug fixes.
+      // listener.lookupTransform("custom", "tool0", ros::Time(0), transform);
+      
+
       // Print location to the console
        double x = transform.getOrigin().x();
        double y = transform.getOrigin().y();
        double z = transform.getOrigin().z();
-       std::cout << "Current position: (" << x << "," << y << "," << z << ")" << std::endl;
+       double rx = transform.getRotation().x();
+       double ry = transform.getRotation().y();
+       double rz = transform.getRotation().z();
 
+       std::cout << "Current position: (" " X" << (x*1000) << " Y" << (y*1000) << " Z" << (z*1000) << " Rx" << (rx*1000) << " Ry" << (ry*1000) << " Rz" << (rz*1000) << ")" << std::endl;
+       
     }
     catch (tf::TransformException &ex) {
       ROS_ERROR("%s",ex.what());
